@@ -544,7 +544,7 @@ def create_shapefile_from_results(
             reader = csv.DictReader(csvfile)
             for row in reader:
                 # Use stripped habitat_type for robust matching
-                color_map[row['habitat_type'].strip()] = row['color_cat'].strip()
+                color_map[row['habitat_type'].strip()] = row['cat_color'].strip()
         console.print(f"🎨 Loaded color map from {color_csv} with {len(color_map)} entries")
 
     if use_grid:
