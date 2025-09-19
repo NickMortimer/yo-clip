@@ -517,7 +517,7 @@ def create_shapefile_from_results(
     output_shapefile: Path,
     crs: str = None,
     use_grid: bool = False,
-    color_csv: Optional[Path] = None
+    color_map: Optional[Dict[str, str]] = None
 ) -> None:
     """Create a shapefile from tile results for QGIS visualization with automatic styling.
     
@@ -536,16 +536,7 @@ def create_shapefile_from_results(
         console.print("⚠️ geopandas and shapely not available. Install with: pip install geopandas shapely")
         return
     
-    color_map = None
-    if color_csv is not None and Path(color_csv).exists():
-        import csv
-        color_map = {}
-        with open(color_csv, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                # Use stripped habitat_type for robust matching
-                color_map[row['habitat_type'].strip()] = row['cat_color'].strip()
-        console.print(f"🎨 Loaded color map from {color_csv} with {len(color_map)} entries")
+
 
     if use_grid:
         console.print("🗺️ Creating fast grid-based shapefile for QGIS...")
@@ -981,6 +972,17 @@ def create_geojson_from_results(
     console.print(f"🌐 CRS: {gdf.crs} (WGS84 for web compatibility)")
     console.print(f"🎨 Created with {len(unique_classes)} color-coded classes")
 
+def load_color_map(color_csv: Path) -> Dict[str, str]:
+    if color_csv is not None and Path(color_csv).exists():
+        import csv
+        color_map = {}
+        with open(color_csv, newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Use stripped habitat_name for robust matching
+                color_map[row['habitat_name'].strip().lower()] = row['cat_color'].strip()
+        console.print(f"🎨 Loaded color map from {color_csv} with {len(color_map)} entries")
+        return color_map
 
 def run_process(
     geotiff_path: Path,
@@ -1012,10 +1014,14 @@ def run_process(
         create_geojson: Whether to create a GeoJSON file
         use_grid: Whether to use fast grid-based shapefile (instead of individual polygons)
     """
+
+
+
     console.print(f"🌍 Processing GeoTIFF: {geotiff_path}")
     console.print(f"� Query vector: {query_vector_path}")
+    console.print(f"� Color Map: {color_csv}")
+    color_map = load_color_map(color_csv)
     console.print(f"📁 Embeddings: {embeddings_file}")
-    
     # Validate inputs
     if not geotiff_path.exists():
         console.print(f"❌ GeoTIFF file not found: {geotiff_path}")
@@ -1180,8 +1186,8 @@ def run_process(
     # Create spatial outputs for QGIS (using all tiles)
     if create_shapefile:
         shapefile_path = output_file.with_suffix('.shp')
-        create_shapefile_from_results(results, tile_metadata, shapefile_path, use_grid=use_grid,color_csv=color_csv)
-    
+        create_shapefile_from_results(results, tile_metadata, shapefile_path, use_grid=use_grid,color_map=color_map)
+
     if create_geojson:
         geojson_path = output_file.with_suffix('.geojson')
         create_geojson_from_results(results, tile_metadata, geojson_path)
