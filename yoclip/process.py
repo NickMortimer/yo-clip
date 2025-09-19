@@ -399,28 +399,17 @@ def extract_geotiff_tiles(
                     # Read the tile data
                     tile_data = src.read(window=window)
                     
-                    # Skip tiles that don't have sufficient RGB bands
-                    if tile_data.shape[0] < 3:
-                        console.print(f"⚠️ Skipping tile at ({x}, {y}): insufficient bands ({tile_data.shape[0]} < 3)")
+                    mask = src.read_masks(1, window=window)
+
+                    # Skip tile if any masked (any values are 0)
+                    if np.any(mask == 0):
                         col += 1
                         progress.advance(task)
                         continue
                     
                     # Convert to RGB (take first 3 bands and transpose to (H, W, C))
                     rgb_tile = tile_data[:3].transpose(1, 2, 0)
-                    
-                    # Check for valid RGB data (no NaN, not all zeros, reasonable range)
-                    # No pixel should be zero in all color channels
-                    if (
-                        np.isnan(rgb_tile).any() or
-                        np.all(rgb_tile == 0) or
-                        rgb_tile.size == 0 or
-                        np.any(np.all(rgb_tile == 0, axis=2))
-                    ):
-                        #console.print(f"⚠️ Skipping tile at ({x}, {y}): invalid RGB data (contains [0,0,0] pixel)")
-                        col += 1
-                        progress.advance(task)
-                        continue
+
                     
                     # Normalize to 0-255 if needed
                     if rgb_tile.dtype != np.uint8:
@@ -555,7 +544,7 @@ def create_shapefile_from_results(
             reader = csv.DictReader(csvfile)
             for row in reader:
                 # Use stripped habitat_type for robust matching
-                color_map[row['habitat_type'].strip()] = row['color_hex'].strip()
+                color_map[row['habitat_type'].strip()] = row['color_cat'].strip()
         console.print(f"🎨 Loaded color map from {color_csv} with {len(color_map)} entries")
 
     if use_grid:
